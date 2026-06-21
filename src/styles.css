@@ -146,6 +146,54 @@ body {
 }
 .status-pill .dot[data-state="online"]  { color: #6fbf2f; background: #6fbf2f; }
 .status-pill .dot[data-state="offline"] { color: #c3361c; background: #c3361c; }
+.status-pill .dot[data-state="neutral"] { color: var(--text-dim); background: var(--text-dim); }
+
+/* Server selector (Server Status panel) */
+.server-select {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  background: var(--bg-row);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--radius);
+}
+.server-current {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.server-current .server-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.server-current strong {
+  color: var(--gold-bright);
+  font-family: var(--font-display);
+}
+.server-current #server-change { margin-left: auto; }
+.server-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.server-form input {
+  flex: 1 1 200px;
+  min-width: 0;
+  padding: 7px 10px;
+  background: var(--bg-deep);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--radius);
+  color: var(--text-on-dark);
+  font-family: var(--font-body);
+}
+.server-note {
+  margin: 10px 0 0;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
 .status-pill .dot[data-state="checking"] {
   color: var(--gold);
   background: var(--gold);

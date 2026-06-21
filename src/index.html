@@ -32,6 +32,21 @@
               <button class="ghost" id="refresh-status" type="button">Refresh</button>
             </div>
           </div>
+          <div class="server-select" id="server-select">
+            <div class="server-current">
+              <span class="server-label">Server</span>
+              <strong id="server-name-display">The Last Camp</strong>
+              <button class="ghost" id="server-change" type="button">Change</button>
+            </div>
+            <form class="server-form" id="server-form" hidden>
+              <input type="text" id="server-input" placeholder="login.example.com:5999" autocomplete="off" spellcheck="false" />
+              <button class="ghost" id="server-save" type="button">Connect</button>
+              <button class="ghost" id="server-reset" type="button">Use The Last Camp</button>
+            </form>
+            <p class="server-note" id="server-note" hidden>
+              Playing another server — the launcher sets your login server and launches your existing RoF2 client. Auto-patching and mods are managed by The Last Camp only.
+            </p>
+          </div>
           <dl class="stat-list">
             <div><dt>Realm</dt><dd id="stat-name">—</dd></div>
             <div><dt>Host</dt><dd id="stat-host">—</dd></div>

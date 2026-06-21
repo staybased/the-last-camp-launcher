@@ -55,6 +55,13 @@ through PoP, any race, any class, any deity. → **[thelastcamp.net](https://the
 
 Built with [Tauri](https://tauri.app) (Rust + web frontend).
 
+## Contributing
+
+This is an open project (MIT) — improvements are welcome. If you make the launcher
+better — a fix, a new server profile, a platform tweak — **open a pull request** and
+we'll review it. Bug reports and suggestions via Issues are welcome too. Please keep
+the credit line intact (it's all the license asks).
+
 ## Development
 
 ```bash

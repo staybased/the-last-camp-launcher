@@ -11,6 +11,7 @@ let toastTimer = null;
 let statusTimer = null;
 let PLATFORM = "macos"; // "windows" | "macos" | "linux"; set on boot
 const isWindows = () => PLATFORM === "windows";
+let IS_TLC = true; // false when pointed at a custom (non-TLC) server
 
 function $(id) {
   return document.getElementById(id);
@@ -44,6 +45,17 @@ async function refreshStatus() {
   els.statusLabel.textContent = "Checking…";
   try {
     const status = await invoke("get_server_status");
+    if (!IS_TLC) {
+      // Custom server: we don't track live status for other realms.
+      els.statusDot.dataset.state = "neutral";
+      els.statusLabel.textContent = "Other server";
+      els.statName.textContent = status.host || "—";
+      els.statHost.textContent = status.host || "—";
+      els.statPlayers.textContent = "—";
+      els.statUptime.textContent = "—";
+      els.statChecked.textContent = formatTime(status.last_check_unix);
+      return;
+    }
     els.statusDot.dataset.state = status.online ? "online" : "offline";
     els.statusLabel.textContent = status.online ? "Online" : "Offline";
     els.statName.textContent = status.server_name || "—";
@@ -63,6 +75,60 @@ async function refreshStatus() {
     els.statChecked.textContent = formatTime(Math.floor(Date.now() / 1000));
     console.error("status fetch failed", err);
   }
+}
+
+// --- Server selection ---------------------------------------------------------
+// The Last Camp is the default/featured server. A player can point the launcher
+// at any RoF2 server by entering a custom host:port; for non-TLC servers the
+// launcher just pins the login host + launches (auto-patch/mods are TLC-only).
+
+async function loadServer() {
+  try {
+    const s = await invoke("get_server");
+    IS_TLC = !!s.is_tlc;
+    els.serverNameDisplay.textContent = IS_TLC ? "The Last Camp" : s.host;
+    els.serverInput.value = IS_TLC ? "" : s.host;
+  } catch (err) {
+    IS_TLC = true;
+    console.error("get_server failed", err);
+  }
+  applyServerMode();
+  refreshStatus();
+}
+
+function applyServerMode() {
+  if (els.serverNote) els.serverNote.hidden = IS_TLC;
+  const mods = document.querySelector(".panel-mods");
+  if (mods) mods.hidden = !IS_TLC;
+  const notes = document.querySelector(".panel-notes");
+  if (notes) notes.hidden = !IS_TLC;
+}
+
+async function saveServer() {
+  const host = (els.serverInput.value || "").trim();
+  try {
+    const s = await invoke("set_server", { host });
+    IS_TLC = !!s.is_tlc;
+    if (els.serverForm) els.serverForm.hidden = true;
+    showToast(IS_TLC ? "Connected to The Last Camp" : `Server set to ${s.host}`);
+    await loadServer();
+    loadPreflight();
+  } catch (err) {
+    showToast(String(err));
+  }
+}
+
+async function resetServer() {
+  els.serverInput.value = "";
+  try {
+    await invoke("set_server", { host: "" });
+  } catch (err) {
+    console.error("reset server failed", err);
+  }
+  if (els.serverForm) els.serverForm.hidden = true;
+  showToast("Connected to The Last Camp");
+  await loadServer();
+  loadPreflight();
 }
 
 async function loadMods() {
@@ -656,6 +722,13 @@ window.addEventListener("DOMContentLoaded", () => {
   els.statPlayers = $("stat-players");
   els.statUptime = $("stat-uptime");
   els.statChecked = $("stat-checked");
+  els.serverNameDisplay = $("server-name-display");
+  els.serverChange = $("server-change");
+  els.serverForm = $("server-form");
+  els.serverInput = $("server-input");
+  els.serverSave = $("server-save");
+  els.serverReset = $("server-reset");
+  els.serverNote = $("server-note");
   els.refreshStatus = $("refresh-status");
   els.verifyInstall = $("verify-install");
   els.modOldModels = $("mod-old-models");
@@ -676,6 +749,12 @@ window.addEventListener("DOMContentLoaded", () => {
 
   els.refreshStatus.addEventListener("click", refreshStatus);
   els.verifyInstall.addEventListener("click", runVerify);
+  els.serverChange.addEventListener("click", () => {
+    els.serverForm.hidden = !els.serverForm.hidden;
+    if (!els.serverForm.hidden) els.serverInput.focus();
+  });
+  els.serverSave.addEventListener("click", saveServer);
+  els.serverReset.addEventListener("click", resetServer);
   for (const key of MOD_KEYS) {
     const el = els[`mod${key.replace(/(^|_)([a-z])/g, (_, _u, c) => c.toUpperCase())}`];
     if (el) el.addEventListener("change", saveMods);
@@ -729,7 +808,7 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  refreshStatus();
+  loadServer(); // sets IS_TLC + calls refreshStatus()
   loadMods();
   loadModPacks();
   loadPatchNotes();

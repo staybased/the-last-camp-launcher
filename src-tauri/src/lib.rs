@@ -27,8 +27,6 @@ const WHISKY_WINE_REL: &str =
 #[cfg(not(target_os = "windows"))]
 const WHISKY_DOWNLOAD_PAGE: &str = "https://getwhisky.app/";
 
-const EQHOST_LINE: &str = "Host=play.thelastcamp.net:5999";
-const EXPECTED_LOGIN_HOST: &str = "Host=play.thelastcamp.net:5999";
 const VERIFY_FILES: &[(&str, u64)] = &[
     ("eqgame.exe", 1_000_000),
     ("eqclient.dll", 100_000),
@@ -113,6 +111,74 @@ fn eq_dir_override() -> Option<PathBuf> {
         return None;
     }
     Some(PathBuf::from(trimmed))
+}
+
+// --- Server selection ---------------------------------------------------------
+// The launcher pins one login server into eqhost.txt and launches the client
+// against it. The Last Camp is the default/featured server; a player can point
+// the launcher at ANY RoF2 server by setting a custom "host:port". Persisted as
+// plain text (mirrors the eqdir.txt pattern) — empty/missing means The Last Camp.
+
+fn server_host_file() -> Result<PathBuf, String> {
+    Ok(data_dir()?.join("server.txt"))
+}
+
+/// The login server the launcher pins + connects to. Defaults to The Last Camp.
+fn active_host() -> String {
+    server_host_file()
+        .ok()
+        .and_then(|p| fs::read_to_string(p).ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| FALLBACK_HOST.to_string())
+}
+
+fn is_tlc_server() -> bool {
+    active_host() == FALLBACK_HOST
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ServerSelection {
+    pub host: String,
+    pub is_tlc: bool,
+}
+
+/// Current login server (host:port) + whether it is The Last Camp.
+#[tauri::command]
+fn get_server() -> ServerSelection {
+    let host = active_host();
+    ServerSelection {
+        is_tlc: host == FALLBACK_HOST,
+        host,
+    }
+}
+
+/// Point the launcher at a server. Empty input (or the TLC host) resets to The
+/// Last Camp. Any other "host:port" is validated, persisted, and immediately
+/// pinned into eqhost.txt so the next launch connects there.
+#[tauri::command]
+fn set_server(host: String) -> Result<ServerSelection, String> {
+    let trimmed = host.trim();
+    let path = server_host_file()?;
+    if trimmed.is_empty() || trimmed == FALLBACK_HOST {
+        let _ = fs::remove_file(&path);
+    } else {
+        let (h, p) = trimmed.rsplit_once(':').ok_or_else(|| {
+            "Enter the server as host:port (e.g. login.example.com:5999)".to_string()
+        })?;
+        if h.is_empty() {
+            return Err("Missing the host before the ':'".into());
+        }
+        match p.parse::<u32>() {
+            Ok(port) if (1..=65535).contains(&port) => {}
+            _ => return Err("Port must be a number between 1 and 65535 (e.g. 5999)".into()),
+        }
+        fs::write(&path, trimmed).map_err(|e| format!("save server: {e}"))?;
+    }
+    // Re-pin eqhost.txt now so the switch takes effect. Ignore if the client
+    // folder isn't set up yet — eqhost gets written during setup either way.
+    let _ = setup_eqhost();
+    Ok(get_server())
 }
 
 // Platform-specific default search locations (after any explicit override).
@@ -217,6 +283,18 @@ fn now_unix() -> u64 {
 #[tauri::command]
 async fn get_server_status() -> Result<ServerStatus, String> {
     let now = now_unix();
+    // Custom (non-TLC) server: the launcher doesn't track live status elsewhere.
+    if !is_tlc_server() {
+        let host = active_host();
+        return Ok(ServerStatus {
+            online: false,
+            players: 0,
+            uptime_seconds: 0,
+            server_name: host.clone(),
+            host,
+            last_check_unix: now,
+        });
+    }
     let mut players: u32 = 0;
     let mut uptime: u64 = 0;
     let mut host = FALLBACK_HOST.to_string();
@@ -597,15 +675,20 @@ fn get_preflight() -> Result<PreflightReport, String> {
     ));
 
     let host_path = eq.join("eqhost.txt");
+    let expected = format!("Host={}", active_host());
     let host_ok = fs::read_to_string(&host_path)
-        .map(|s| s.contains(EXPECTED_LOGIN_HOST))
+        .map(|s| s.contains(&expected))
         .unwrap_or(false);
     checks.push(check(
         "eqhost",
-        "Login server pinned to The Last Camp",
+        if is_tlc_server() {
+            "Login server pinned to The Last Camp"
+        } else {
+            "Login server pinned"
+        },
         host_ok,
         if host_ok {
-            EXPECTED_LOGIN_HOST.to_string()
+            expected
         } else {
             "eqhost.txt missing or wrong host".into()
         },
@@ -961,6 +1044,15 @@ async fn fetch_manifest() -> Result<Manifest, String> {
 
 #[tauri::command]
 async fn check_for_updates() -> Result<UpdateCheckResult, String> {
+    // Auto-patching is a The Last Camp service. Other servers run their own
+    // client + patcher, so report nothing to update and let launch proceed.
+    if !is_tlc_server() {
+        return Ok(UpdateCheckResult {
+            manifest_version: "n/a".into(),
+            files_to_update: Vec::new(),
+            total_bytes: 0,
+        });
+    }
     let manifest = fetch_manifest().await?;
     let eq = eq_dir()?;
     let mut needs_update = Vec::new();
@@ -996,6 +1088,11 @@ async fn check_for_updates() -> Result<UpdateCheckResult, String> {
 
 #[tauri::command]
 async fn apply_updates(app: AppHandle) -> Result<u32, String> {
+    // Only The Last Camp is auto-patched; for other servers this is a no-op.
+    if !is_tlc_server() {
+        let _ = &app;
+        return Ok(0);
+    }
     let manifest = fetch_manifest().await?;
     let eq = eq_dir()?;
     let client = reqwest::Client::builder()
@@ -1203,7 +1300,7 @@ fn get_setup_state() -> Result<SetupState, String> {
     let eq = eq_dir()?;
     let client_installed = eq.join("eqgame.exe").exists();
     let eqhost_set = fs::read_to_string(eq.join("eqhost.txt"))
-        .map(|s| s.contains(EXPECTED_LOGIN_HOST))
+        .map(|s| s.contains(&format!("Host={}", active_host())))
         .unwrap_or(false);
     let ready = whisky_installed && prefix_ready && client_installed && eqhost_set;
     Ok(SetupState {
@@ -1282,7 +1379,7 @@ fn setup_eqhost() -> Result<(), String> {
     let eq = eq_dir()?;
     fs::create_dir_all(&eq).map_err(|e| format!("create eq dir: {e}"))?;
     let path = eq.join("eqhost.txt");
-    let payload = format!("[LoginServer]\r\n{}\r\n", EQHOST_LINE);
+    let payload = format!("[LoginServer]\r\nHost={}\r\n", active_host());
     fs::write(&path, payload).map_err(|e| format!("write eqhost: {e}"))?;
     Ok(())
 }
@@ -1333,6 +1430,8 @@ pub fn run() {
             get_platform,
             get_eq_dir,
             set_eq_dir,
+            get_server,
+            set_server,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

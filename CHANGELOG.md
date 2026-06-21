@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.5.0 — Play any RoF2 server
+
+The launcher now works with **any** EverQuest RoF2 server, not just The Last Camp —
+while keeping TLC as the default, featured, one-click experience.
+
+- **Custom server option.** In *Server Status → Change*, enter any server's login
+  `host:port`. The launcher pins it into `eqhost.txt` and launches your RoF2 client on
+  Apple Silicon through the same Metal-accelerated stack. Leave it on The Last Camp for
+  the full turnkey experience.
+- **The Last Camp stays the only auto-patched server** (with live status + mods). For
+  any other server the launcher just sets your login server and launches your existing,
+  already-patched client.
+- No server presets baked in — one field, works with every RoF2 server.
+- Open source (MIT) — improvements welcome via pull request.
+
 ## v0.4.0 — Beta (first public release)
 
 The first public build of **The Last Camp Launcher** — EverQuest on Apple Silicon,

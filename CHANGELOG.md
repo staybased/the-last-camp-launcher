@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.6.0 — One-click Dock shortcut
+
+- **Add Dock Shortcut** (Server Status panel) creates a standalone app that launches the
+  game directly, **skipping the launcher**. macOS: drops "The Last Camp" in
+  `~/Applications` — drag it to your Dock for true one-click play. Windows: a shortcut on
+  the Desktop. The shortcut uses the same Apple-Silicon launch and connects to whatever
+  server you currently have selected.
+
 ## v0.5.0 — Play any RoF2 server
 
 The launcher now works with **any** EverQuest RoF2 server, not just The Last Camp —

@@ -131,6 +131,25 @@ async function resetServer() {
   loadPreflight();
 }
 
+// Create a "play" shortcut (Dock .app on macOS, Desktop .bat on Windows) that
+// launches the game directly, skipping this launcher.
+async function makeShortcut() {
+  els.makeShortcut.disabled = true;
+  try {
+    const path = await invoke("create_play_shortcut");
+    console.log("shortcut created at", path);
+    showToast(
+      isWindows()
+        ? "Desktop shortcut created — double-click it to play."
+        : "Added to ~/Applications — drag “The Last Camp” to your Dock to play in one click."
+    );
+  } catch (err) {
+    showToast(String(err));
+  } finally {
+    els.makeShortcut.disabled = false;
+  }
+}
+
 async function loadMods() {
   try {
     const state = await invoke("get_mod_state");
@@ -731,6 +750,7 @@ window.addEventListener("DOMContentLoaded", () => {
   els.serverNote = $("server-note");
   els.refreshStatus = $("refresh-status");
   els.verifyInstall = $("verify-install");
+  els.makeShortcut = $("make-shortcut");
   els.modOldModels = $("mod-old-models");
   els.modClassicSpells = $("mod-classic-spells");
   els.modTakpIcons = $("mod-takp-icons");
@@ -749,6 +769,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   els.refreshStatus.addEventListener("click", refreshStatus);
   els.verifyInstall.addEventListener("click", runVerify);
+  els.makeShortcut.addEventListener("click", makeShortcut);
   els.serverChange.addEventListener("click", () => {
     els.serverForm.hidden = !els.serverForm.hidden;
     if (!els.serverForm.hidden) els.serverInput.focus();
@@ -826,6 +847,7 @@ window.addEventListener("DOMContentLoaded", () => {
       PLATFORM = "macos";
     }
     document.body.dataset.platform = PLATFORM;
+    if (isWindows() && els.makeShortcut) els.makeShortcut.textContent = "Add Desktop Shortcut";
     loadPreflight();
     loadSetupState({ openWizardIfNeeded: true });
   })();

@@ -1384,6 +1384,101 @@ fn setup_eqhost() -> Result<(), String> {
     Ok(())
 }
 
+/// Create a standalone "play" shortcut that launches the game directly, skipping
+/// the launcher UI. It connects to whatever server is currently selected (the
+/// host pinned in eqhost.txt). macOS: a .app in ~/Applications (drag to the Dock)
+/// that runs the same Whisky/Metal launch command as Enter World via `exec`, so
+/// macOS does not reap the game when the wrapper would otherwise exit.
+#[cfg(not(target_os = "windows"))]
+#[tauri::command]
+fn create_play_shortcut() -> Result<String, String> {
+    let wine = whisky_wine_bin()?;
+    let prefix = wine_prefix()?;
+    let eq = eq_dir()?;
+    let apps = dirs::home_dir()
+        .ok_or_else(|| "could not resolve home directory".to_string())?
+        .join("Applications");
+    fs::create_dir_all(&apps).map_err(|e| format!("create ~/Applications: {e}"))?;
+    let app_path = apps.join("The Last Camp.app");
+    let macos = app_path.join("Contents/MacOS");
+    let resources = app_path.join("Contents/Resources");
+    fs::create_dir_all(&macos).map_err(|e| format!("create app bundle: {e}"))?;
+    fs::create_dir_all(&resources).map_err(|e| format!("create app bundle: {e}"))?;
+
+    // {:?} on a Path emits a double-quoted, escaped string — safe for paths with
+    // spaces. Same env as launch_eq; exec replaces the wrapper with the game.
+    let script = format!(
+        "#!/bin/bash\n\
+         export WINEPREFIX={prefix:?}\n\
+         export WINEDEBUG=-all\n\
+         export WINEDLLOVERRIDES=\"d3d9,d3d10core,d3d11,d3d12,dxgi=n,b\"\n\
+         export WINEESYNC=1\n\
+         export WINEFSYNC=1\n\
+         export DXVK_ASYNC=1\n\
+         cd {eq:?} || exit 1\n\
+         exec {wine:?} eqgame.exe patchme\n",
+    );
+    let exec_path = macos.join("run");
+    fs::write(&exec_path, script).map_err(|e| format!("write launch script: {e}"))?;
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&exec_path)
+            .map_err(|e| format!("stat script: {e}"))?
+            .permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&exec_path, perms).map_err(|e| format!("chmod script: {e}"))?;
+    }
+
+    let plist = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+        <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n\
+        <plist version=\"1.0\"><dict>\
+        <key>CFBundleName</key><string>The Last Camp</string>\
+        <key>CFBundleDisplayName</key><string>The Last Camp</string>\
+        <key>CFBundleExecutable</key><string>run</string>\
+        <key>CFBundleIdentifier</key><string>live.thelastcamp.play</string>\
+        <key>CFBundlePackageType</key><string>APPL</string>\
+        <key>CFBundleIconFile</key><string>icon</string>\
+        <key>CFBundleShortVersionString</key><string>1.0</string>\
+        </dict></plist>";
+    fs::write(app_path.join("Contents/Info.plist"), plist)
+        .map_err(|e| format!("write Info.plist: {e}"))?;
+
+    // Reuse the launcher's own campfire icon (Contents/Resources/icon.icns).
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(icns) = exe
+            .parent()
+            .and_then(|p| p.parent())
+            .map(|contents| contents.join("Resources/icon.icns"))
+        {
+            if icns.exists() {
+                let _ = fs::copy(&icns, resources.join("icon.icns"));
+            }
+        }
+    }
+
+    // Nudge LaunchServices to register the new bundle + icon.
+    let _ = std::process::Command::new("/usr/bin/touch")
+        .arg(&app_path)
+        .status();
+
+    Ok(app_path.display().to_string())
+}
+
+/// Windows: a .bat on the Desktop that launches eqgame directly.
+#[cfg(target_os = "windows")]
+#[tauri::command]
+fn create_play_shortcut() -> Result<String, String> {
+    let eq = eq_dir()?;
+    let desktop = dirs::desktop_dir().ok_or_else(|| "could not resolve Desktop".to_string())?;
+    let bat = desktop.join("The Last Camp.bat");
+    let script = format!(
+        "@echo off\r\ncd /d \"{}\"\r\nstart \"\" eqgame.exe patchme\r\n",
+        eq.display()
+    );
+    fs::write(&bat, &script).map_err(|e| format!("write shortcut: {e}"))?;
+    Ok(bat.display().to_string())
+}
+
 /// No-op on Windows (no Whisky needed).
 #[cfg(target_os = "windows")]
 #[tauri::command]
@@ -1432,6 +1527,7 @@ pub fn run() {
             set_eq_dir,
             get_server,
             set_server,
+            create_play_shortcut,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

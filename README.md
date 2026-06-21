@@ -36,9 +36,9 @@ simple — bring EverQuest to every player, whatever they're sitting in front of
   Windows 10/11**.
 - **[Whisky](https://getwhisky.app)** (macOS only) — a free Wine/GPTK runtime. The setup
   wizard links you to it; install it once.
-- **An EverQuest RoF2 client** — the folder that contains `eqgame.exe`. The launcher does
-  **not** distribute the client; you bring your own. Don't have one yet? Ask in the
-  [Discord](https://discord.gg/bpv2FWpFg2).
+- **An EverQuest RoF2 client** — the folder that contains `eqgame.exe`. This is
+  **bring-your-own-client**: the launcher doesn't distribute the EverQuest client, it runs
+  the RoF2 client you already have. (RoF2 is the standard EQEmu client.)
 
 ## How to install
 
@@ -55,7 +55,7 @@ simple — bring EverQuest to every player, whatever they're sitting in front of
 3. **Run the setup wizard** (opens automatically on first launch):
    1. **Install Whisky** — the wizard opens [getwhisky.app](https://getwhisky.app); install it, then return.
    2. **Initialize the Wine prefix** — one click.
-   3. **Locate your EverQuest client** — point the launcher at your RoF2 folder (the one with `eqgame.exe`). No client yet? Ask in [Discord](https://discord.gg/bpv2FWpFg2).
+   3. **Locate your EverQuest client** — point the launcher at your RoF2 folder (the one with `eqgame.exe`). Bring your own client; the launcher doesn't distribute it.
    4. **Set login server** — one click (pins The Last Camp by default).
 4. Press **Enter World** — or **Add Dock Shortcut** for true one-click play next time.
 
@@ -91,9 +91,9 @@ already-patched client.
 ## FAQ
 
 **Do I need to already have EverQuest?**
-Yes — a RoF2 client (the folder with `eqgame.exe`). The launcher doesn't distribute the
-client; it sets it up to run on your Mac and connects it to the server. Ask in
-[Discord](https://discord.gg/bpv2FWpFg2) if you need help getting one.
+Yes — a RoF2 client (the folder with `eqgame.exe`). This is **bring-your-own-client**: the
+launcher sets up the RoF2 client you already have to run on Apple Silicon and connects it to
+a server. It doesn't distribute the client.
 
 **Why does macOS say the developer "can't be verified"?**
 The beta is unsigned (no paid Apple certificate). It's open source — the code is right

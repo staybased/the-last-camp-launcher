@@ -382,7 +382,7 @@ const WIZARD_STEPS = [
     label: "Locate your EverQuest client",
     detailDone: null, // filled at render-time with eq_dir
     detailPending:
-      "The Last Camp doesn't distribute the EverQuest client. Point us at your RoF2 folder (the one with eqgame.exe). Don't have it yet? Ask in our Discord.",
+      "Bring your own client: point us at your RoF2 folder (the one with eqgame.exe). The launcher doesn't distribute the EverQuest client.",
     actionLabel: null,
     handler: null,
     blockingDep: "prefix_ready",
@@ -435,7 +435,7 @@ function renderWizardSteps(state) {
         : escapeHtml(step.detailDone);
     } else if (step.key === "client") {
       detail =
-        "Point us at your RoF2 client folder (the one with eqgame.exe). Don't have it? Get it from our Discord.";
+        "Point us at your RoF2 client folder (the one with eqgame.exe) — bring your own; the launcher doesn't distribute the client.";
     } else {
       detail = escapeHtml(step.detailPending);
     }

@@ -879,11 +879,7 @@ pub struct DownloadProgress {
 }
 
 fn emit_progress(app: &AppHandle, key: &str, stage: &str, received: u64, total: u64) {
-    let percent = if total > 0 {
-        ((received * 100) / total).min(100) as u8
-    } else {
-        0
-    };
+    let percent = (received * 100).checked_div(total).unwrap_or(0).min(100) as u8;
     let _ = app.emit(
         "mod-pack-progress",
         DownloadProgress {
@@ -1263,12 +1259,10 @@ pub struct SetupProgress {
 }
 
 fn emit_setup(app: &AppHandle, step: &str, stage: &str, received: u64, total: u64, detail: &str) {
-    let percent = if total > 0 {
-        ((received * 100) / total).min(100) as u8
-    } else if stage == "done" {
-        100
-    } else {
-        0
+    let percent = match (received * 100).checked_div(total) {
+        Some(p) => p.min(100) as u8,
+        None if stage == "done" => 100,
+        None => 0
     };
     let _ = app.emit(
         "setup-progress",

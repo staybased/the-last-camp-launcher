@@ -1,0 +1,27 @@
+# Dependencies
+/node_modules
+/src-tauri/target
+/dist
+
+# Build artifacts
+/src-tauri/gen
+*.dmg
+*.app
+
+# Editor / OS
+.DS_Store
+.idea
+.vscode
+*.log
+
+# Tauri
+/src-tauri/.cargo
+
+# Secrets / keys (never commit)
+.env
+.env.*
+*.pem
+*.key
+*.p12
+id_rsa
+id_ed25519

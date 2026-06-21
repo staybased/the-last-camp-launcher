@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#110e0b; --bg-elev:#1a1612; --bg-card:#16120f;
+    --ink:#eae0d1; --ink-dim:#b2a99d; --ink-mute:#787068;
+    --gold:#d8a93b; --gold-hot:#f6c343; --gold-soft:#89692a;
+    --ember:#b33a0a; --ember-hot:#e94c00; --rune:#468369;
+    --rule:#2c2824; --rule-hot:#3d3730;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    width:1240px; background:var(--bg); color:var(--ink);
+    font-family:"Cormorant Garamond",Georgia,serif; padding:52px 60px 56px;
+    background-image:
+      radial-gradient(620px 300px at 100% -4%, rgba(233,76,0,.11), transparent 62%),
+      radial-gradient(720px 360px at 0% 104%, rgba(216,169,59,.10), transparent 60%);
+  }
+  .eyebrow{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.36em;text-transform:uppercase;color:var(--ink-mute);display:flex;align-items:center;gap:14px}
+  .eyebrow .spark{width:9px;height:11px;background:linear-gradient(var(--gold-hot),var(--ember));border-radius:50% 50% 50% 50%/60% 60% 40% 40%;display:inline-block;transform:translateY(1px)}
+  h1{font-family:"Cinzel",serif;font-weight:700;font-size:42px;letter-spacing:.01em;margin:14px 0 8px;line-height:1.04}
+  h1 .hot{color:var(--gold-hot)}
+  .sub{font-size:20px;color:var(--ink-dim);max-width:840px;line-height:1.4}
+  .sub b{color:var(--ink);font-weight:600}
+  .hr{height:1px;background:var(--rule);margin:30px 0}
+
+  .stage{display:grid;grid-template-columns:1fr 150px 1fr;gap:0;align-items:stretch;position:relative}
+  .zone-label{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.28em;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:10px}
+  .zone-label .tick{width:18px;height:1px;background:var(--rule-hot)}
+  .mine .zone-label{color:var(--ink-mute)}
+  .theirs .zone-label{color:var(--gold)}
+
+  .card{background:var(--bg-card);border:1px solid var(--rule);border-radius:4px;padding:18px 20px}
+  .card .t{font-family:"Cinzel",serif;font-weight:500;font-size:17px;letter-spacing:.01em}
+  .card .d{font-size:15px;color:var(--ink-dim);margin-top:5px;line-height:1.36}
+  .card ul{list-style:none;margin-top:9px}
+  .card li{font-size:15px;color:var(--ink-dim);padding:2px 0 2px 16px;position:relative}
+  .card li::before{content:"·";position:absolute;left:3px;color:var(--gold)}
+  .tag{display:inline-block;font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;padding:2px 7px;border-radius:2px;margin-top:11px}
+  .tag.cr{color:var(--ink-mute);border:1px solid var(--rule-hot)}
+  .tag.tlc{color:var(--gold-hot);border:1px solid var(--gold-soft)}
+
+  .mine{display:flex;flex-direction:column;gap:16px;padding-right:8px}
+  .theirs{display:flex;flex-direction:column;gap:16px;padding-left:8px}
+  .patcher{border-color:var(--gold-soft);box-shadow:0 0 0 1px rgba(216,169,59,.18), 0 10px 40px -22px rgba(233,76,0,.5)}
+  .patcher .t{color:var(--gold-hot)}
+  .launch{border-style:dashed;border-color:var(--rune)}
+  .launch .t{color:var(--rune)}
+
+  /* the line */
+  .line{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:6px}
+  .line .bar{position:absolute;top:0;bottom:0;left:50%;width:0;border-left:2px dashed var(--gold-soft);transform:translateX(-1px)}
+  .line .cap{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);writing-mode:vertical-rl;transform:rotate(180deg);background:var(--bg);padding:10px 0;z-index:2;margin-top:60px}
+  .cross{z-index:2;background:var(--bg);padding:8px 0;text-align:center;width:100%}
+  .cross .ok{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.06em;color:var(--rune)}
+  .cross .no{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.06em;color:var(--ember-hot);margin-top:8px}
+  .cross .ar{font-size:15px;color:var(--gold-hot);margin-top:2px}
+
+  .flowarrow{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.12em;color:var(--ink-mute);text-transform:uppercase;text-align:center;margin:7px 0 1px}
+
+  /* steps */
+  .steps-h{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:16px}
+  .steps{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+  .step{background:var(--bg-elev);border:1px solid var(--rule);border-radius:4px;padding:15px 14px;position:relative}
+  .step .n{font-family:"Cinzel",serif;font-size:22px;color:var(--gold-hot);line-height:1}
+  .step .s{font-size:15.5px;color:var(--ink);margin-top:8px;font-weight:600;line-height:1.25}
+  .step .x{font-size:13.5px;color:var(--ink-mute);margin-top:5px;line-height:1.32}
+  .step.guard{border-color:var(--ember);}
+  .step.guard .x{color:var(--ember-hot)}
+
+  /* lanes */
+  .lanes{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:26px}
+  .lane{border:1px solid var(--rule);border-radius:4px;padding:16px 18px;display:flex;gap:14px;align-items:flex-start}
+  .lane .mk{font-size:22px;line-height:1;margin-top:1px}
+  .lane.bad{border-color:var(--rule);background:linear-gradient(180deg,rgba(179,58,10,.07),transparent)}
+  .lane.bad .mk{color:var(--ember-hot)}
+  .lane.good{border-color:var(--gold-soft);background:linear-gradient(180deg,rgba(216,169,59,.07),transparent)}
+  .lane.good .mk{color:var(--rune)}
+  .lane .lt{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-mute)}
+  .lane .ld{font-size:16px;color:var(--ink-dim);margin-top:6px;line-height:1.38}
+  .lane.good .ld b{color:var(--gold-hot);font-weight:600}
+  .lane.bad .ld b{color:var(--ember-hot);font-weight:600}
+  .foot{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-mute);margin-top:28px;text-align:center}
+</style>
+</head>
+<body>
+  <div class="eyebrow"><span class="spark"></span> The Last Camp · Client Distribution Model</div>
+  <h1>Bring-Your-Own-Client <span class="hot">— the patcher syncs our files onto your client</span></h1>
+  <p class="sub">You supply the EverQuest client. The patcher only ever adds <b>our own</b> files and points your install at our server. <b>The game client never crosses the line</b> — so TLC isn't in the redistribution business.</p>
+
+  <div class="hr"></div>
+
+  <div class="stage">
+    <!-- your machine -->
+    <div class="mine">
+      <div class="zone-label"><span class="tick"></span> Your machine</div>
+      <div class="card">
+        <div class="t">Your RoF2 client</div>
+        <div class="d">The folder with <code>eqgame.exe</code> + base <code>.s3d</code>/<code>.eqg</code>/<code>.dll</code>. You acquire this yourself.</div>
+        <span class="tag cr">© Daybreak · TLC never hosts it</span>
+      </div>
+      <div class="flowarrow">read in place ↓</div>
+      <div class="card patcher">
+        <div class="t">The Patcher (runs here)</div>
+        <div class="d">Locates your client, applies our delta, sets the login server, launches. Runs entirely on your machine.</div>
+      </div>
+      <div class="flowarrow">launch ↓</div>
+      <div class="card launch">
+        <div class="t">Play → play.thelastcamp.net</div>
+        <div class="d">Wine-wrapped on Mac · native on PC.</div>
+      </div>
+    </div>
+
+    <!-- the line -->
+    <div class="line">
+      <div class="bar"></div>
+      <div class="cross">
+        <div class="ok">TLC files only ▸</div>
+        <div class="ar">▶</div>
+        <div class="no">✕ client never<br/>crosses</div>
+      </div>
+      <div class="cap">The line we don't cross</div>
+    </div>
+
+    <!-- TLC -->
+    <div class="theirs">
+      <div class="zone-label"><span class="tick"></span> The Last Camp · private host</div>
+      <div class="card">
+        <div class="t">TLC files only</div>
+        <ul>
+          <li>Custom UI &amp; HUD</li>
+          <li>Custom zones &amp; content TLC built</li>
+          <li><code>eqhost.txt</code> (login pointer)</li>
+          <li>Delete-list (remove revamp art → classic fallback)</li>
+        </ul>
+        <span class="tag tlc">Our own work · hosted privately</span>
+      </div>
+      <div class="card">
+        <div class="t">What's NOT here</div>
+        <div class="d">No <code>eqgame.exe</code>. No base game art. No 8.4&nbsp;GB client. If you don't have a real RoF2 client, the patcher sends you to get one — it won't fill the gap.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hr"></div>
+
+  <div class="steps-h">How the patcher works</div>
+  <div class="steps">
+    <div class="step"><div class="n">1</div><div class="s">Locate your client</div><div class="x">Auto-detect a <code>rof2</code> folder, or point us at it.</div></div>
+    <div class="step guard"><div class="n">2</div><div class="s">Verify it's real</div><div class="x">No real client? → "get one from Discord." Won't backfill.</div></div>
+    <div class="step"><div class="n">3</div><div class="s">Delete revamp art</div><div class="x">Falls back to the classic geometry already in your client.</div></div>
+    <div class="step"><div class="n">4</div><div class="s">Sync TLC files</div><div class="x">Add our UI/zones + write <code>eqhost.txt</code>.</div></div>
+    <div class="step"><div class="n">5</div><div class="s">Launch</div><div class="x">Wine on Mac · native on PC → connect &amp; play.</div></div>
+  </div>
+
+  <div class="lanes">
+    <div class="lane bad">
+      <div class="mk">✕</div>
+      <div><div class="lt">Lane A — removed</div><div class="ld">TLC ships the full <b>8.4 GB client</b>. That's <b>redistributing Daybreak's copyrighted client</b> — the exact thing that sinks servers.</div></div>
+    </div>
+    <div class="lane good">
+      <div class="mk">✓</div>
+      <div><div class="lt">Lane B — now</div><div class="ld">You bring the client; TLC syncs only <b>its own files</b>. <b>Not redistribution</b> — the P99 model.</div></div>
+    </div>
+  </div>
+
+  <div class="foot">The patcher is the bridge — but only our files cross it.</div>
+</body>
+</html>

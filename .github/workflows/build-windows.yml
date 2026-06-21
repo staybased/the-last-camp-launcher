@@ -1,0 +1,75 @@
+name: build-windows-launcher
+
+# Builds the signed Windows installer + Tauri updater artifact.
+# Trigger by pushing a tag like `launcher-v0.4.0`, or run manually.
+#
+# Required repo secrets (Settings -> Secrets and variables -> Actions):
+#   TAURI_SIGNING_PRIVATE_KEY           minisign private key (matches the
+#                                       pubkey baked into tauri.conf.json)
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  password for that key
+#
+# Outputs (download from the run's Artifacts):
+#   *_x64-setup.exe          the installer players run AND the self-update payload
+#                            (Tauri v2 NSIS updates by re-running the installer)
+#   *_x64-setup.exe.sig      minisign signature -> goes in launcher/manifest.json
+
+on:
+  push:
+    tags: ["launcher-v*"]
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
+
+      - name: Install frontend deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Build signed Windows bundle
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: pnpm tauri build
+
+      # Informational only — the deploy script reads the .sig from the artifact.
+      # Tauri v2's NSIS updater payload IS the -setup.exe (signed as .exe.sig);
+      # there is no .nsis.zip (that was v1). continue-on-error so a cosmetic
+      # glob miss can never again block the artifact upload below.
+      - name: Show updater signature (paste into manifest.json)
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          echo "=== windows-x86_64 updater signature ==="
+          shopt -s nullglob
+          for f in src-tauri/target/release/bundle/nsis/*-setup.exe.sig; do
+            echo "file: $f"
+            cat "$f"
+            echo
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: crushbone-launcher-windows
+          if-no-files-found: error
+          path: |
+            src-tauri/target/release/bundle/nsis/*-setup.exe
+            src-tauri/target/release/bundle/nsis/*-setup.exe.sig

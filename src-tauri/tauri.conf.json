@@ -1,0 +1,62 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "The Last Camp Launcher",
+  "version": "0.4.0",
+  "identifier": "live.crushbone.launcher",
+  "build": {
+    "frontendDist": "../src"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "The Last Camp",
+        "width": 1360,
+        "height": 860,
+        "minWidth": 1180,
+        "minHeight": 760,
+        "resizable": true,
+        "center": true,
+        "decorations": true,
+        "transparent": false,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": true,
+    "targets": ["app", "dmg", "nsis"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "category": "Game",
+    "shortDescription": "The Last Camp — EverQuest Emulator Launcher",
+    "longDescription": "One-click launcher and player dashboard for The Last Camp EQEmu server. Live status, mod toggles, patch notes.",
+    "windows": {
+      "webviewInstallMode": { "type": "downloadBootstrapper" },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["English"]
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://patch.thelastcamp.net/patch/launcher/manifest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY0N0MzOERGRkYwREIwQjIKUldTeXNBMy8zemg4OUFSUDRFbmx1dUp4RXNnTlZ6Z3AvMGpPdkZQVHZIY2RDaHpZVC8wNm5PeGIK",
+      "dangerousInsecureTransportProtocol": false
+    }
+  }
+}

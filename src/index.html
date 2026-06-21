@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="styles.css" />
+    <title>The Last Camp</title>
+    <script type="module" src="/main.js" defer></script>
+  </head>
+  <body>
+    <div class="frame">
+      <header class="masthead">
+        <div class="brand">
+          <img class="sigil" src="assets/cb-logo.png" alt="The Last Camp sigil" width="56" height="56" />
+          <div class="title">
+            <img class="wordmark" src="assets/wordmark.png" alt="The Last Camp" />
+            <p class="tagline">Norrath Reborn · Player Launcher</p>
+          </div>
+        </div>
+        <div class="status-pill" id="status-pill">
+          <span class="dot" data-state="checking"></span>
+          <span class="label">Checking…</span>
+        </div>
+      </header>
+
+      <main class="grid">
+        <section class="panel panel-status" aria-labelledby="status-h">
+          <div class="panel-header">
+            <h2 id="status-h">Server Status</h2>
+            <div class="panel-actions">
+              <button class="ghost" id="verify-install" type="button">Verify Install</button>
+              <button class="ghost" id="refresh-status" type="button">Refresh</button>
+            </div>
+          </div>
+          <dl class="stat-list">
+            <div><dt>Realm</dt><dd id="stat-name">—</dd></div>
+            <div><dt>Host</dt><dd id="stat-host">—</dd></div>
+            <div><dt>Players Online</dt><dd id="stat-players">—</dd></div>
+            <div><dt>Uptime</dt><dd id="stat-uptime">—</dd></div>
+            <div><dt>Last Check</dt><dd id="stat-checked">—</dd></div>
+          </dl>
+        </section>
+
+        <section class="panel panel-mods" aria-labelledby="mods-h">
+          <div class="panel-header">
+            <h2 id="mods-h">Mods &amp; Tweaks</h2>
+            <span class="hint">One-click · revertible</span>
+          </div>
+          <ul class="toggle-list">
+            <li data-pack="old_models">
+              <label class="toggle">
+                <input type="checkbox" id="mod-old-models" />
+                <span class="track"></span>
+                <div class="meta">
+                  <strong>Classic Models</strong>
+                  <em>Pre-Luclin character & monster models (Mr. Tot's pack)</em>
+                </div>
+              </label>
+              <button class="ghost mod-action" data-pack="old_models" hidden>Download</button>
+            </li>
+            <li data-pack="classic_spells">
+              <label class="toggle">
+                <input type="checkbox" id="mod-classic-spells" />
+                <span class="track"></span>
+                <div class="meta">
+                  <strong>Classic Spell Effects</strong>
+                  <em>Original particle FX from the Velious era</em>
+                </div>
+              </label>
+              <button class="ghost mod-action" data-pack="classic_spells" hidden>Download</button>
+            </li>
+            <li data-pack="takp_icons">
+              <label class="toggle">
+                <input type="checkbox" id="mod-takp-icons" />
+                <span class="track"></span>
+                <div class="meta">
+                  <strong>TAKP Buff Icons</strong>
+                  <em>Al'Kabor-style buff & spell icon set</em>
+                </div>
+              </label>
+              <button class="ghost mod-action" data-pack="takp_icons" hidden>Download</button>
+            </li>
+          </ul>
+
+          <ul class="addon-list" id="addon-list" aria-label="Optional add-ons"></ul>
+
+          <div class="preset-row">
+            <label for="perf-preset">Performance Preset</label>
+            <select id="perf-preset">
+              <option value="ultra">Ultra · all the bells</option>
+              <option value="high">High · recommended for M-series</option>
+              <option value="medium" selected>Medium · balanced</option>
+              <option value="low">Low · maximum FPS</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="panel panel-notes" aria-labelledby="notes-h">
+          <div class="panel-header">
+            <h2 id="notes-h">Patch Notes</h2>
+            <span class="hint" id="notes-source"></span>
+          </div>
+          <div class="notes-scroll" id="notes-scroll">
+            <p class="placeholder">Loading the latest dispatches from the realm…</p>
+          </div>
+        </section>
+      </main>
+
+      <footer class="launchbar">
+        <div class="launchbar-meta">
+          <ul class="preflight-strip" id="preflight-strip" aria-label="System checks"></ul>
+          <span id="launch-meta">Ready when you are, traveler.</span>
+          <nav class="link-rail" aria-label="The Last Camp links">
+            <a href="https://thelastcamp.net/wiki" data-ext>Wiki</a>
+            <span class="rail-sep">·</span>
+            <a href="https://discord.gg/bpv2FWpFg2" data-ext>Discord</a>
+            <span class="rail-sep">·</span>
+            <a href="https://thelastcamp.net/forums" data-ext>Forums</a>
+            <span class="rail-sep">·</span>
+            <a href="https://thelastcamp.net/changelog" data-ext>Changelog</a>
+          </nav>
+        </div>
+        <button class="enter-world" id="enter-world" type="button">
+          <span class="rune">⚔</span>
+          <span class="text">Enter World</span>
+          <span class="rune">⚔</span>
+        </button>
+      </footer>
+
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+      <div class="update-banner" id="update-banner" hidden>
+        <div class="update-banner-body">
+          <strong>Launcher update available</strong>
+          <span id="update-banner-meta"></span>
+        </div>
+        <div class="update-banner-actions">
+          <button class="primary" id="update-install" type="button">Install &amp; restart</button>
+          <button class="ghost" id="update-dismiss" type="button">Later</button>
+        </div>
+      </div>
+
+      <div class="modal-backdrop" id="setup-modal" hidden>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="setup-h">
+          <header class="modal-header">
+            <h2 id="setup-h">First-Run Setup</h2>
+            <button class="ghost" id="setup-dismiss" type="button" aria-label="Dismiss">×</button>
+          </header>
+          <p class="modal-intro">
+            Four steps and the gate is yours. Each runs in place — no Terminal, no homework.
+          </p>
+          <ol class="setup-steps" id="setup-steps"></ol>
+          <footer class="modal-footer">
+            <button class="ghost" id="setup-recheck" type="button">Re-check</button>
+            <button class="enter-world compact" id="setup-launch" type="button" disabled>
+              <span class="text">All Clear · Enter World</span>
+            </button>
+          </footer>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

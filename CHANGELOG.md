@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.6.1 — Bring-your-own-client wording
+
+- The first-run setup wizard now states **bring-your-own-client** plainly at the "Locate
+  your EverQuest client" step, instead of pointing you to Discord to obtain a client. The
+  launcher runs the RoF2 client you already have; it doesn't distribute the client. (README
+  updated to match.) No functional changes.
+
 ## v0.6.0 — One-click Dock shortcut
 
 - **Add Dock Shortcut** (Server Status panel) creates a standalone app that launches the

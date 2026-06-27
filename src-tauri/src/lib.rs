@@ -437,6 +437,106 @@ fn is_symlink_to(path: &Path, pack_dir: &Path) -> bool {
     resolved.starts_with(pack_dir)
 }
 
+/// Apply the two per-machine fixes a RoF2 client needs on Windows so it does
+/// not crash with c0000005. These are binary/registry tweaks, not file syncs,
+/// so they live in the launcher rather than the manifest — parity with the
+/// standalone updater's self-heal step. Best-effort and idempotent: safe to
+/// call on every update and launch; failures are logged, never propagated, so
+/// they can never block play.
+///   1. LargeAddressAware — eqgame.exe is 32-bit; without the PE flag it is
+///      capped at 2 GB and crashes after ~10 min of UI memory growth.
+///   2. dGPU preference — hybrid-GPU laptops default to the integrated GPU,
+///      which access-violates; force the high-performance GPU for eqgame.exe.
+#[cfg(target_os = "windows")]
+fn ensure_windows_launch_fixes(eq: &Path) {
+    let exe = eq.join("eqgame.exe");
+    if let Err(e) = patch_large_address_aware(&exe) {
+        eprintln!("LAA patch skipped: {e}");
+    }
+    if let Err(e) = set_high_perf_gpu(&exe) {
+        eprintln!("GPU preference skipped: {e}");
+    }
+}
+
+/// Set the LargeAddressAware bit in eqgame.exe's PE header (idempotent; backs
+/// up to eqgame.exe.bak once before the first modification).
+#[cfg(target_os = "windows")]
+fn patch_large_address_aware(exe: &Path) -> Result<(), String> {
+    const LARGE_ADDRESS_AWARE: u16 = 0x0020;
+    let mut bytes = fs::read(exe).map_err(|e| format!("read {}: {e}", exe.display()))?;
+
+    // PE header offset is stored at 0x3C; the COFF Characteristics word sits at
+    // peOffset + 0x16.
+    let pe_off = u32::from_le_bytes(
+        bytes
+            .get(0x3C..0x40)
+            .ok_or("file too small for PE offset")?
+            .try_into()
+            .map_err(|_| "bad PE offset slice")?,
+    ) as usize;
+    let char_off = pe_off + 0x16;
+    let cur = u16::from_le_bytes(
+        bytes
+            .get(char_off..char_off + 2)
+            .ok_or("file too small for PE characteristics")?
+            .try_into()
+            .map_err(|_| "bad characteristics slice")?,
+    );
+    if cur & LARGE_ADDRESS_AWARE != 0 {
+        return Ok(()); // already patched
+    }
+
+    let mut bak = exe.as_os_str().to_owned();
+    bak.push(".bak");
+    let bak = PathBuf::from(bak);
+    if !bak.exists() {
+        fs::copy(exe, &bak).map_err(|e| format!("backup {}: {e}", bak.display()))?;
+    }
+
+    let patched = (cur | LARGE_ADDRESS_AWARE).to_le_bytes();
+    bytes[char_off] = patched[0];
+    bytes[char_off + 1] = patched[1];
+    fs::write(exe, &bytes).map_err(|e| format!("write {}: {e}", exe.display()))?;
+    Ok(())
+}
+
+/// Pin eqgame.exe to the high-performance GPU via the Windows graphics
+/// preference registry value (idempotent; only writes if absent so a user's
+/// explicit choice is never overwritten).
+#[cfg(target_os = "windows")]
+fn set_high_perf_gpu(exe: &Path) -> Result<(), String> {
+    const KEY: &str = r"HKCU\Software\Microsoft\DirectX\UserGpuPreferences";
+    let value_name = exe.to_string_lossy().to_string();
+
+    let already_set = std::process::Command::new("reg")
+        .args(["query", KEY, "/v", &value_name])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+    if already_set {
+        return Ok(());
+    }
+
+    let status = std::process::Command::new("reg")
+        .args([
+            "add",
+            KEY,
+            "/v",
+            &value_name,
+            "/t",
+            "REG_SZ",
+            "/d",
+            "GpuPreference=2;",
+            "/f",
+        ])
+        .status()
+        .map_err(|e| format!("reg add: {e}"))?;
+    if !status.success() {
+        return Err(format!("reg add exited with {status}"));
+    }
+    Ok(())
+}
+
 /// Launch the EQ client. Windows runs eqgame.exe natively; macOS/Linux drive
 /// it through Whisky's bundled Wine + GPTK runtime.
 #[cfg(target_os = "windows")]
@@ -450,6 +550,9 @@ async fn launch_eq() -> Result<(), String> {
             eq.display()
         ));
     }
+    // Self-heal LAA + dGPU before every launch so a bring-your-own-client
+    // install can never crash with c0000005, even if it was never patched.
+    ensure_windows_launch_fixes(&eq);
     // RoF2 requires "patchme" so it skips the retired Sony patcher and connects
     // straight to The Last Camp login server pinned in eqhost.txt.
     Command::new(&exe)
@@ -498,10 +601,7 @@ async fn launch_eq() -> Result<(), String> {
         .arg("patchme")
         .env("WINEPREFIX", &prefix)
         .env("WINEDEBUG", "-all")
-        .env(
-            "WINEDLLOVERRIDES",
-            "d3d9,d3d10core,d3d11,d3d12,dxgi=n,b",
-        )
+        .env("WINEDLLOVERRIDES", "d3d9,d3d10core,d3d11,d3d12,dxgi=n,b")
         .env("WINEESYNC", "1")
         .env("WINEFSYNC", "1")
         .env("DXVK_ASYNC", "1")
@@ -945,8 +1045,7 @@ async fn download_mod_pack(app: AppHandle, key: String) -> Result<ModPackInfo, S
     emit_progress(&app, entry.0, "downloading", received, total.max(received));
 
     emit_progress(&app, entry.0, "extracting", 0, 0);
-    let archive_file =
-        fs::File::open(&archive_path).map_err(|e| format!("open archive: {e}"))?;
+    let archive_file = fs::File::open(&archive_path).map_err(|e| format!("open archive: {e}"))?;
     let mut archive = Archive::new(GzDecoder::new(archive_file));
     archive
         .unpack(&pack_dir)
@@ -1001,7 +1100,7 @@ pub struct UpdateCheckResult {
 
 #[derive(Debug, Serialize, Clone)]
 pub struct PatchProgress {
-    pub stage: String,            // "checking" | "downloading" | "writing" | "done"
+    pub stage: String, // "checking" | "downloading" | "writing" | "done"
     pub current_file: String,
     pub files_done: u32,
     pub files_total: u32,
@@ -1106,6 +1205,12 @@ async fn apply_updates(app: AppHandle) -> Result<u32, String> {
         }
     }
 
+    // Apply the per-machine launch fixes (LAA + dGPU) on Windows during every
+    // patch, mirroring the standalone updater's self-heal step. Runs before the
+    // empty-pending early return below so an already-current install still heals.
+    #[cfg(target_os = "windows")]
+    ensure_windows_launch_fixes(&eq);
+
     // Re-diff (file state may have changed since check)
     let pending: Vec<ManifestFile> = manifest
         .files
@@ -1194,8 +1299,7 @@ async fn apply_updates(app: AppHandle) -> Result<u32, String> {
         // Atomic write: tmp file + rename
         let target = eq.join(&entry.path);
         if let Some(parent) = target.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|e| format!("mkdir {}: {e}", parent.display()))?;
+            fs::create_dir_all(parent).map_err(|e| format!("mkdir {}: {e}", parent.display()))?;
         }
         let tmp = target.with_extension("crushbone-tmp");
         fs::write(&tmp, &bytes).map_err(|e| format!("write tmp {}: {e}", tmp.display()))?;
@@ -1250,8 +1354,8 @@ pub struct SetupState {
 
 #[derive(Debug, Serialize, Clone)]
 pub struct SetupProgress {
-    pub stage: String,    // "downloading" | "extracting" | "initializing" | "done" | "error"
-    pub step: String,     // "whisky" | "wine_prefix" | "client" | "eqhost"
+    pub stage: String, // "downloading" | "extracting" | "initializing" | "done" | "error"
+    pub step: String,  // "whisky" | "wine_prefix" | "client" | "eqhost"
     pub received: u64,
     pub total: u64,
     pub percent: u8,
@@ -1262,7 +1366,7 @@ fn emit_setup(app: &AppHandle, step: &str, stage: &str, received: u64, total: u6
     let percent = match (received * 100).checked_div(total) {
         Some(p) => p.min(100) as u8,
         None if stage == "done" => 100,
-        None => 0
+        None => 0,
     };
     let _ = app.emit(
         "setup-progress",
@@ -1282,8 +1386,7 @@ fn get_setup_state() -> Result<SetupState, String> {
     // Whisky/Wine are macOS/Linux-only. On Windows they're not applicable, so
     // we report them ready and gate overall readiness on client + eqhost only.
     #[cfg(target_os = "windows")]
-    let (whisky_installed, prefix_ready, whisky_download_url) =
-        (true, true, String::new());
+    let (whisky_installed, prefix_ready, whisky_download_url) = (true, true, String::new());
     #[cfg(not(target_os = "windows"))]
     let (whisky_installed, prefix_ready, whisky_download_url) = (
         Path::new(WHISKY_APP).exists() && whisky_wine_bin()?.exists(),

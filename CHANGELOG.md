@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.7.0 — Windows crash self-heal (LAA + dGPU)
+
+- **Windows installs now self-heal the two fixes a RoF2 client needs to stop
+  `c0000005` crashes**, automatically — on every patch *and* every launch:
+  - **LargeAddressAware**: the 32-bit `eqgame.exe` is PE-patched so it can use
+    >2 GB, eliminating the ~10-minute memory-exhaustion crash (original backed
+    up to `eqgame.exe.bak`).
+  - **High-performance GPU**: `eqgame.exe` is pinned to the discrete GPU via the
+    Windows graphics preference, so hybrid-GPU laptops stop access-violating on
+    the integrated GPU.
+- Both are idempotent and best-effort (a failure is logged, never blocks play),
+  and only the discrete-GPU preference is written if you haven't set one. This
+  brings the launcher to parity with the standalone `Crushbone-Patcher.bat`
+  self-heal. macOS/Linux unaffected.
+
 ## v0.6.1 — Bring-your-own-client wording
 
 - The first-run setup wizard now states **bring-your-own-client** plainly at the "Locate
